@@ -1,0 +1,19 @@
+{
+  "name": "scrappers",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "colors": "^0.6.2",
+    "lodash": "^2.4.1",
+    "mongoose": "^3.8.12",
+    "phantom": "^0.6.4",
+    "q": "^1.0.1",
+    "util": "^0.10.3"
+  }
+}
