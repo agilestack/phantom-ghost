@@ -66,8 +66,7 @@ ghost = (providedExtractors, providedCrawlers, providedPostProcessors, providedO
 
   options = lo.defaults defaultOptions, providedOptions
   extractors = lo.clone $commonExtractors
-  extractors = extractors.concat providedExtractors if providedExtractors?
-  extractors = lo.compact extractors
+  extractors = extractors.concat(lo.compact(providedExtractors)) if providedExtractors?
 
   postProcessors = providedPostProcessors or []
   crawlers = providedCrawlers or []
@@ -100,59 +99,59 @@ ghost = (providedExtractors, providedCrawlers, providedPostProcessors, providedO
         urlsToExplore: options.urlsToExplore or [url]
         data: []
 
-      lastPage = undefined
+      phantomPage = undefined
+      ph = undefined
 
-      parsePages = (ph) ->
-        lastPage.close() if lastPage?
+      pageRunner = (page) =>
+        phantomPage = page
 
-        ph.createPage (page) ->
-          currentUrl = undefined
-          while (currentUrl = results.urlsToExplore.pop())
-            if results.exploredURLs.indexOf(currentUrl) >= 0
-              console.log "Skipped #{currentUrl}. It is visited already.".debug
-              continue
+        currentUrl = undefined
+        while (currentUrl = results.urlsToExplore.pop())
+          if results.exploredURLs.indexOf(currentUrl) >= 0
+            console.log "Skipped #{currentUrl}. It is visited already.".debug
+            continue
+          else
+            break
+        unless currentUrl?
+          ph.exit()
+          console.log "Exiting PhantomJS instance. No URLs to visit remain.".info
+          deferred.resolve results
+          return
+
+        nextPage = ->
+          results.exploredURLs.push currentUrl
+          pageRunner page
+
+        console.log ('Processing URL: ' + currentUrl).info
+
+        page.open currentUrl, (status) ->
+          unless status == 'success'
+            if options.breakOnPageStatus
+              deferred.reject new Error "Unable to open page URL: #{currentUrl}"
             else
-              break
-          unless currentUrl?
-            ph.exit()
-            console.log "Exiting PhantomJS instance. No URLs to visit remain.".info
-            deferred.resolve results
+              console.log "Unable to open the following URL: #{currentUrl}. The error was skipped because `breakOnPageStatus' is set to false.".debug
+              nextPage()
             return
+            
+          page.render "#{cleanUrl(currentUrl)}.shot.png" if debug
 
-          nextPage = ->
-            results.exploredURLs.push currentUrl
-            lastPage = page
-            parsePages ph
+          container =
+            uri: currentUrl
+            features: {}
 
-          console.log ('Processing URL: ' + currentUrl).info
+          applyExtractor page, lo.clone(extractors), ((result) -> container.features = lo.merge container.features, result), ->
+            while (postProcessor = postProcessors.pop())
+              container = lo.merge container postProcessor container
 
-          page.open currentUrl, (status) ->
-            unless status == 'success'
-              if options.breakOnPageStatus
-                deferred.reject new Error "Unable to open page URL: #{currentUrl}"
-              else
-                console.log "Unable to open the following URL: #{currentUrl}. The error was skipped because `breakOnPageStatus' is set to false.".debug
-                nextPage()
-              return
-              
-            page.render "#{cleanUrl(currentUrl)}.shot.png" if debug
+            results.data.push container
 
-            container =
-              uri: currentUrl
-              features: {}
+            applyExtractor page, lo.clone(crawlers), ((result) -> results.urlsToExplore = results.urlsToExplore.concat result), ->
+              console.log ('... well done.').info                
+              nextPage()
 
-            applyExtractor page, lo.clone(extractors), ((result) -> container.features = lo.merge container.features, result), ->
-              while (postProcessor = postProcessors.pop())
-                container = lo.merge container postProcessor container
-
-              results.data.push container
-
-              applyExtractor page, lo.clone(crawlers), ((result) -> results.urlsToExplore = results.urlsToExplore.concat result), ->
-                console.log ('... well done.').info                
-                nextPage()
-
-      createPhantom().then((ph) ->
-        parsePages ph
+      createPhantom().then((phantomInstance) ->
+        ph = phantomInstance
+        if phantomPage then pageRunner(phantomPage) else ph.createPage pageRunner
       ).catch(-> console.log "Unable to start PhantomJS instance".error)
 
 
