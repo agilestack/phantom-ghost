@@ -1,5 +1,35 @@
+# todo:
+# 1. Как быть со страницами, для которых нужно применять разные экстракторы?
+# 2. Что делать если хочется просто получить список ссылок? <использовать также экстракторы без краулеров>
+# 3. Как сохранить простоту структуры скрапера для случая с несколькими страницами?
+# 4. Generic Extractor 
+
+genericExtractor ->
+	
+
+
+# ghost
+#   pages: ["index", "category"]
+#   extractors:
+#   	index: [
+#   		->
+#   		->
+#   		->
+#   	]
+#   	category: [
+#   		->
+#   	]
+#   crawlers:
+#   	index: ->
+#   	category: ->
+#   postProcessors:
+#   	index:
+
+# url = ['URL', 'class']
+
 ghost = require './phantom-node-promise'
 scrape = ghost [
+	#Extractors
   ->
     els = document.querySelectorAll 'a.post_title'
     result = []
